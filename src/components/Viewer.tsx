@@ -44,6 +44,23 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(({
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [zoomPercent, setZoomPercent] = useState('96%');
 
+  // Aggressively force-disable closed captions and subtitles
+  const forceDisableCaptions = (player: any) => {
+    if (!player) return;
+    try {
+      if (typeof player.unloadModule === 'function') {
+        player.unloadModule('captions');
+        player.unloadModule('cc');
+      }
+      if (typeof player.setOption === 'function') {
+        player.setOption('captions', 'track', {});
+        player.setOption('captions', 'reload', false);
+        player.setOption('captions', 'fontSize', -1);
+        player.setOption('cc', 'track', {});
+      }
+    } catch (e) {}
+  };
+
   // Expose imperative handle for instant seeking and playback control
   useImperativeHandle(ref, () => ({
     seekTo: (seconds: number) => {
@@ -94,7 +111,7 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(({
           iv_load_policy: 3,    // Turn off video annotations
           cc_load_policy: 0,    // Turn off captions/subtitles by default
           cc_lang_pref: 'none', // No captions language
-          disablekb: 1,         // Disable YouTube keyboard shortcuts so Space/arrows belong to FCP
+          disablekb: 1,         // Disable YouTube keyboard shortcuts
           playsinline: 1,
           enablejsapi: 1,
           origin: window.location.origin,
@@ -108,21 +125,11 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(({
             if (settings.muted) event.target.mute();
             else event.target.unMute();
 
-            // Strictly unload closed captions modules to ensure no captions appear
-            try {
-              if (event.target.unloadModule) {
-                event.target.unloadModule('captions');
-                event.target.unloadModule('cc');
-              }
-              if (event.target.setOption) {
-                event.target.setOption('captions', 'track', {});
-              }
-            } catch (e) {}
-
+            forceDisableCaptions(event.target);
             if (isPlaying) event.target.playVideo();
           },
           onStateChange: (event: any) => {
-            // sync if needed
+            forceDisableCaptions(event.target);
           },
         },
       });
@@ -151,9 +158,11 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(({
           if (typeof d === 'number' && !isNaN(d) && d > 0 && Math.abs(d - duration) > 1) {
             onDurationChange(d);
           }
+          // Continually suppress any auto-injected captions
+          forceDisableCaptions(playerRef.current);
         } catch (e) {}
       }
-    }, 100);
+    }, 200);
 
     return () => {
       clearInterval(checkInterval);
@@ -241,13 +250,18 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(({
             </p>
           </div>
         ) : (
-          /* Pure, Stealth Video Canvas: YouTube UI completely cropped and neutralized */
+          /* Pure, Stealth Video Canvas: YouTube UI & Captions completely cropped and neutralized */
           <div 
-            className="relative aspect-video max-w-full max-h-full w-full bg-black shadow-2xl flex items-center justify-center overflow-hidden"
+            className="relative aspect-video max-w-full max-h-full w-full bg-black shadow-2xl flex items-center justify-center overflow-hidden rounded"
             style={videoFilterStyle}
           >
-            {/* Scaled slightly (106%) with overflow-hidden to permanently eliminate YouTube titles, badges & watermarks */}
-            <div className="w-[106%] h-[106%] pointer-events-none select-none flex items-center justify-center overflow-hidden">
+            {/*
+              Ultra Stealth Masking:
+              Scale width to 114% and height to 134%, with top shifted by -5% and bottom overflow by 29%.
+              This physically pushes YouTube's bottom overlay (Share pill, Watch Later, "동영상 더보기" shelf,
+              YouTube logo, and closed captions) COMPLETELY out of the visible screen!
+            */}
+            <div className="w-[114%] h-[134%] -mt-[5%] -mb-[29%] pointer-events-none select-none flex items-center justify-center overflow-hidden relative">
               <div id="yt-player-target" className="w-full h-full pointer-events-none"></div>
             </div>
 
