@@ -13,6 +13,8 @@ export interface Clip {
   codec: string;
   date: string;
   channelTitle?: string;
+  isFavorite?: boolean;
+  type?: 'video' | 'audio' | 'still' | 'project';
 }
 
 export interface TimelineClip {
@@ -26,15 +28,49 @@ export interface TimelineClip {
 }
 
 export interface InspectorSettings {
-  exposure: number; // brightness % (50 - 150)
-  contrast: number; // contrast % (50 - 150)
-  saturation: number; // saturation % (0 - 200)
-  hue: number; // deg (-180 to 180)
-  blur: number; // px (0 - 10)
-  volume: number; // 0 - 100
+  // Color & Opacity
+  exposure: number;     // brightness %
+  contrast: number;     // contrast %
+  saturation: number;   // saturation %
+  hue: number;          // deg
+  blur: number;         // px
+  opacity: number;      // 0 - 100%
+  blendMode: 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten';
+  
+  // Transform
+  posX: number;         // px offset
+  posY: number;         // px offset
+  scale: number;        // %
+  scaleX: number;       // %
+  scaleY: number;       // %
+  rotation: number;     // deg (-360 to 360)
+  anchorX: number;
+  anchorY: number;
+
+  // Shape Mask
+  hasShapeMask: boolean;
+  maskRadius: number;   // px
+  maskCurvature: number;// 0 - 100%
+  maskFillOpacity: number; // 0 - 100%
+  maskFeather: number;  // px
+  maskInvert: boolean;
+
+  // Crop & Effects
+  hasCrop: boolean;
+  cropLeft: number;
+  cropRight: number;
+  cropTop: number;
+  cropBottom: number;
+  hasDistort: boolean;
+  hasStabilization: boolean;
+  hasRollingShutter: boolean;
+
+  // Audio
+  volume: number;       // 0 - 100
   muted: boolean;
-  scale: number; // % (50 - 150)
-  rotation: number; // deg (-180 to 180)
+  pan: number;          // -100 to 100
+  voiceIsolation: number; // 0 - 100%
+  noiseRemoval: boolean;
 }
 
 export interface PlaybackState {

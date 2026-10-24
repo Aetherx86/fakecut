@@ -12,8 +12,8 @@ import { INITIAL_CLIPS, extractYouTubeId, fetchYouTubeMeta } from './services/yo
 export function App() {
   const viewerRef = useRef<ViewerHandle>(null);
 
-  // Clips state
-  const [clips, setClips] = useState<Clip[]>([]);
+  // Clips state populated with realistic FCP event clips
+  const [clips, setClips] = useState<Clip[]>(INITIAL_CLIPS);
   const [activeClip, setActiveClip] = useState<Clip | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -24,17 +24,42 @@ export function App() {
   const [isImportOpen, setIsImportOpen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  // Inspector settings
+  // Inspector settings fully matching Image 1
   const [inspectorSettings, setInspectorSettings] = useState<InspectorSettings>({
     exposure: 100,
     contrast: 100,
     saturation: 100,
     hue: 0,
     blur: 0,
+    opacity: 100,
+    blendMode: 'normal',
+    posX: 0,
+    posY: 0,
+    scale: 100,
+    scaleX: 100,
+    scaleY: 100,
+    rotation: 0,
+    anchorX: 0,
+    anchorY: 0,
+    hasShapeMask: false,
+    maskRadius: 1200,
+    maskCurvature: 100,
+    maskFillOpacity: 100,
+    maskFeather: 0,
+    maskInvert: false,
+    hasCrop: false,
+    cropLeft: 0,
+    cropRight: 0,
+    cropTop: 0,
+    cropBottom: 0,
+    hasDistort: false,
+    hasStabilization: false,
+    hasRollingShutter: false,
     volume: 80,
     muted: false,
-    scale: 100,
-    rotation: 0,
+    pan: 0,
+    voiceIsolation: 75,
+    noiseRemoval: true,
   });
 
   // Toggle fullscreen
@@ -131,6 +156,18 @@ export function App() {
     setIsPlaying(true);
   };
 
+  const handleToggleFavorite = (clipId: string) => {
+    setClips(prev => prev.map(c => c.id === clipId ? { ...c, isFavorite: !c.isFavorite } : c));
+  };
+
+  const handleDeleteClip = (clipId: string) => {
+    setClips(prev => prev.filter(c => c.id !== clipId));
+    if (activeClip?.id === clipId) {
+      setActiveClip(null);
+      setIsPlaying(false);
+    }
+  };
+
   // Quick import from Left search input
   const handleImportFromUrl = async (urlOrQuery: string) => {
     const extractedId = extractYouTubeId(urlOrQuery);
@@ -148,6 +185,7 @@ export function App() {
         fps: 30,
         codec: 'Apple ProRes 422',
         date: new Date().toISOString().slice(0, 10),
+        type: 'video',
       };
       handleAddClip(newClip);
     } else {
@@ -187,6 +225,8 @@ export function App() {
           onSelectClip={handleSelectClip}
           onOpenImport={() => setIsImportOpen(true)}
           onImportUrl={handleImportFromUrl}
+          onToggleFavorite={handleToggleFavorite}
+          onDeleteClip={handleDeleteClip}
         />
 
         {/* Center Viewer matching Image 1 */}
@@ -203,7 +243,7 @@ export function App() {
             onPlayPauseToggle={() => {
               if (!activeClip) {
                 // If clicked when empty, load first sample
-                handleSelectClip(INITIAL_CLIPS[0]);
+                handleSelectClip(clips[0] || INITIAL_CLIPS[0]);
               } else {
                 setIsPlaying(p => !p);
               }
@@ -213,11 +253,12 @@ export function App() {
           />
         </div>
 
-        {/* Right Inspector matching Image 1 */}
+        {/* Right Inspector matching Image 1 with live controls */}
         <Inspector
           clip={activeClip}
           settings={inspectorSettings}
           onUpdateSettings={handleUpdateSettings}
+          isPlaying={isPlaying}
         />
       </div>
 

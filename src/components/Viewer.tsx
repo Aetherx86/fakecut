@@ -195,10 +195,15 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(({
   }, [settings.volume, settings.muted, isPlayerReady]);
 
   // Inspector CSS filter & transform simulation
-  const videoFilterStyle = {
-    opacity: settings.contrast ? `${settings.contrast}%` : '100%',
-    transform: `scale(${settings.scale / 100})`,
+  const videoFilterStyle: React.CSSProperties = {
+    opacity: (settings.opacity ?? 100) / 100,
+    mixBlendMode: settings.blendMode || 'normal',
+    transform: `translate(${settings.posX || 0}px, ${settings.posY || 0}px) rotate(${settings.rotation || 0}deg) scale(${(settings.scale || 100) / 100})`,
     filter: `brightness(${settings.exposure}%) saturate(${settings.saturation}%)`,
+    clipPath: settings.hasCrop 
+      ? `inset(${settings.cropTop || 0}% ${settings.cropRight || 0}% ${settings.cropBottom || 0}% ${settings.cropLeft || 0}%)`
+      : undefined,
+    transition: 'transform 0.05s ease-out, opacity 0.05s ease-out',
   };
 
   return (
@@ -264,6 +269,17 @@ export const Viewer = forwardRef<ViewerHandle, ViewerProps>(({
             <div className="w-[114%] h-[134%] -mt-[5%] -mb-[29%] pointer-events-none select-none flex items-center justify-center overflow-hidden relative">
               <div id="yt-player-target" className="w-full h-full pointer-events-none"></div>
             </div>
+
+            {/* Shape Mask Vignette Overlay driven live by Inspector */}
+            {settings.hasShapeMask && (
+              <div 
+                className="absolute inset-0 pointer-events-none z-20 transition-all duration-75"
+                style={{
+                  boxShadow: `inset 0 0 ${settings.maskFeather * 2}px ${Math.max(0, (1800 - settings.maskRadius) / 18)}px rgba(0,0,0,${settings.maskFillOpacity / 100})`,
+                  borderRadius: `${settings.maskCurvature / 2}%`,
+                }}
+              />
+            )}
 
             {/* Transparent click shield: Captures user clicks for Play/Pause so YouTube UI NEVER triggers */}
             <div 
