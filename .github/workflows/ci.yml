@@ -16,6 +16,24 @@ permissions:
   contents: read
 
 jobs:
+  # A job's `if:` cannot use hashFiles, so this works out which jobs apply.
+  detect:
+    name: Detect Project Types
+    runs-on: ubuntu-latest
+    outputs:
+      rust_workflow: ${{ steps.files.outputs.rust_workflow }}
+      docker_workflow: ${{ steps.files.outputs.docker_workflow }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Look for each kind of project
+        id: files
+        run: |
+          if [ -n "$(git ls-files -- ':(glob)**/Cargo.toml' | head -1)" ]; then echo "rust_workflow=true" >> "$GITHUB_OUTPUT"; else echo "rust_workflow=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$(git ls-files -- ':(glob)**/Dockerfile*' | head -1)" ]; then echo "docker_workflow=true" >> "$GITHUB_OUTPUT"; else echo "docker_workflow=false" >> "$GITHUB_OUTPUT"; fi
+
   # ===========================================================================
   # 1. Security & Safety: Secret Scanning and Repository Hygiene
   # ===========================================================================
@@ -37,7 +55,7 @@ jobs:
       - name: Repository Hygiene & Conflict Marker Verification
         run: |
           echo "Scanning for unresolved git conflict markers..."
-          ! git grep -nE '<<<<<<< HEAD|=======|>>>>>>>' -- ':!*.pdf' ':!*.png' ':!*.jpg' ':!*.mp4' || (echo "Error: Unresolved conflict markers found" && exit 1)
+          ! git grep -nIE '^(<<<<<<< |>>>>>>> )' || (echo "Error: Unresolved conflict markers found" && exit 1)
           echo "Repository hygiene check completed successfully."
 
   # ===========================================================================
@@ -46,7 +64,8 @@ jobs:
   rust-workflow:
     name: Rust Quality, Tests & Security Audit
     runs-on: ubuntu-latest
-    if: hashFiles('**/Cargo.toml') != ''
+    needs: detect
+    if: needs.detect.outputs.rust_workflow == 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -100,7 +119,8 @@ jobs:
   docker-workflow:
     name: Docker Lint, Build & Trivy Scan
     runs-on: ubuntu-latest
-    if: hashFiles('**/Dockerfile*') != ''
+    needs: detect
+    if: needs.detect.outputs.docker_workflow == 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
